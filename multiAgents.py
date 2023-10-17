@@ -69,15 +69,61 @@ class ReflexAgent(Agent):
 
         # Useful information you can extract from a GameState (pacman.py)
         successorGameState = currentGameState.generatePacmanSuccessor(action)
+
         newPos = successorGameState.getPacmanPosition()
-        newFood = successorGameState.getFood()
+        newFood = successorGameState.getFood().asList()
+
+        oldPos = currentGameState.getPacmanPosition()
+        oldFood = currentGameState.getFood().asList()
+
         newGhostStates = successorGameState.getGhostStates()
-        newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+        oldGhostStates = currentGameState.getGhostStates()
 
         "*** YOUR CODE HERE ***"
 
+        # CASOS EXTREMOS
 
-        return successorGameState.getScore()#Tendréis que comentar esta linea y devolver el valor que calculeis
+        if successorGameState.isLose():
+            return -100000
+        elif successorGameState.isWin():
+            return 100000
+
+        # CALCULAR DISTANCIAS A LA COMIDA (ANTES VS DESPUES)
+
+        newFoodDist = [util.manhattanDistance(newPos, food) for food in newFood]
+        oldFoodDist = [util.manhattanDistance(oldPos, food) for food in oldFood]
+
+        minNewFoodDist = min(newFoodDist)
+        minOldFoodDist = min(oldFoodDist)
+
+        # CALCULAR DISTANCIAS A LOS FANTASMAS (ANTES VS DESPUES)
+
+        newGhostDistances = [util.manhattanDistance(newPos, ghostState.getPosition()) for ghostState in newGhostStates]
+        oldGhostDistances = [util.manhattanDistance(oldPos, ghostState.getPosition()) for ghostState in oldGhostStates]
+
+        minNewGhostDist = min(newGhostDistances)
+        minOldGhostDist = min(oldGhostDistances)
+
+        # FACTOR 1 -> CERCANIA A LA COMIDA
+        v1 = 0
+        if newFoodDist and minNewFoodDist < minOldFoodDist:
+            v1 = 40
+
+        # FACTOR 2 -> NUMERO DE COMIDAS EN EL TABLERO
+        v2 = 0
+        if len(newFoodDist) < len(oldFoodDist):
+            v2 = 170
+
+        # FACTOR 3 -> CERCANIA A LOS FANTASMAS
+        v3 = 0
+        if minNewGhostDist > minOldGhostDist:
+            v3 = 10
+        else:
+            v3 = -5
+
+        value = v1 + v2 + v3
+
+        return successorGameState.getScore() - currentGameState.getScore() + value
 
 
 def scoreEvaluationFunction(currentGameState):
@@ -144,6 +190,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
 
+
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)
@@ -155,7 +202,6 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
-
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
