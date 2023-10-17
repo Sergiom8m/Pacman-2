@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-#
+# 
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -12,23 +12,21 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
 
-"Common code for autograders"
+"""Common code for autograders"""
 
-import cgi
-import time
-import sys
+import html
 import json
+import time
 import traceback
-import pdb
 from collections import defaultdict
+
 import util
 
 
 class Grades:
-    "A data structure for project grades, along with formatting code to display them"
+    """A data structure for project grades, along with formatting code to display them"""
 
-    def __init__(self, projectName, questionsAndMaxesList,
-                 gsOutput=False, edxOutput=False, muteOutput=False):
+    def __init__(self, projectName, questionsAndMaxesList, gsOutput=False, edxOutput=False, muteOutput=False):
         """
         Defines the grading scheme for a project
           projectName: project name
@@ -47,64 +45,61 @@ class Grades:
         self.mute = muteOutput
         self.prereqs = defaultdict(set)
 
-        # print 'Autograder transcript for %s' % self.project
+        # print('Autograder transcript for %s' % self.project)
         print('Starting on %d-%d at %d:%02d:%02d' % self.start)
 
     def addPrereq(self, question, prereq):
         self.prereqs[question].add(prereq)
 
-    def grade(self, gradingModule, exceptionMap={}, bonusPic=False):
+    def grade(self, gradingModule, exceptionMap=None, bonusPic=False):
         """
         Grades each question
           gradingModule: the module with all the grading functions (pass in with sys.modules[__name__])
         """
 
-        completedQuestions = set([])
-        for q in self.questions:
-            print('\nQuestion %s' % q)
-            print('=' * (9 + len(q)))
-            print()
-            self.currentQuestion = q
+        if exceptionMap is None:
+            exceptionMap = {}
 
-            incompleted = self.prereqs[q].difference(completedQuestions)
+        completedQuestions = set([])
+        for question in self.questions:
+            print(f'\nQuestion {question}')
+            print('=' * (9 + len(question)))
+            print()
+            self.currentQuestion = question
+
+            incompleted = self.prereqs[question].difference(completedQuestions)
             if len(incompleted) > 0:
                 prereq = incompleted.pop()
-                print("""*** NOTE: Make sure to complete Question %s before working on Question %s,
-*** because Question %s builds upon your answer for Question %s.
-""" % (prereq, q, q, prereq))
+                print(f"*** NOTE: Make sure to complete Question {prereq} before working on Question {question},\n"
+                      f"*** because Question {question} builds upon your answer for Question {prereq}.")
                 continue
 
-            if self.mute:
-                util.mutePrint()
+            if self.mute: util.mutePrint()
             try:
-                util.TimeoutFunction(getattr(gradingModule, q), 1800)(
-                    self)  # Call the question's function
+                util.TimeoutFunction(getattr(gradingModule, question), 1800)(self)  # Call the question's function
                 # TimeoutFunction(getattr(gradingModule, q),1200)(self) # Call the question's function
             except Exception as inst:
-                self.addExceptionMessage(q, inst, traceback)
-                self.addErrorHints(exceptionMap, inst, q[1])
+                self.addExceptionMessage(question, inst, traceback)
+                self.addErrorHints(exceptionMap, inst, question[1])
             except:
                 self.fail('FAIL: Terminated with a string exception.')
             finally:
-                if self.mute:
-                    util.unmutePrint()
+                if self.mute: util.unmutePrint()
 
-            if self.points[q] >= self.maxes[q]:
-                completedQuestions.add(q)
+            if self.points[question] >= self.maxes[question]:
+                completedQuestions.add(question)
 
-            print('\n### Question %s: %d/%d ###\n' %
-                  (q, self.points[q], self.maxes[q]))
+            print(f'\n### Question {question}: {self.points[question]}/{self.maxes[question]} ###\n')
 
         print('\nFinished at %d:%02d:%02d' % time.localtime()[3:6])
         print("\nProvisional grades\n==================")
 
-        for q in self.questions:
-            print('Question %s: %d/%d' % (q, self.points[q], self.maxes[q]))
+        for question in self.questions:
+            print(f'Question {question}: {self.points[question]}/{self.maxes[question]}')
         print('------------------')
-        print('Total: %d/%d' %
-              (self.points.totalCount(), sum(self.maxes.values())))
+        print(f'Total: {self.points.totalCount()}/{sum(self.maxes.values())}')
         if bonusPic and self.points.totalCount() == 25:
-            print("""
+            print(r"""
 
                      ALL HAIL GRANDPAC.
               LONG LIVE THE GHOSTBUSTING KING.
@@ -151,7 +146,7 @@ to follow your instructor's guidelines to receive credit on your project.
         Method to format the exception message, this is more complicated because
         we need to cgi.escape the traceback but wrap the exception in a <pre> tag
         """
-        self.fail('FAIL: Exception raised: %s' % inst)
+        self.fail(f'FAIL: Exception raised: {inst}')
         self.addMessage('')
         for line in traceback.format_exc().split('\n'):
             self.addMessage(line)
@@ -164,11 +159,11 @@ to follow your instructor's guidelines to receive credit on your project.
         # question specific error hints
         if exceptionMap.get(questionName):
             questionMap = exceptionMap.get(questionName)
-            if (questionMap.get(typeOf)):
+            if questionMap.get(typeOf):
                 errorHint = questionMap.get(typeOf)
         # fall back to general error messages if a question specific
         # one does not exist
-        if (exceptionMap.get(typeOf)):
+        if exceptionMap.get(typeOf):
             errorHint = exceptionMap.get(typeOf)
 
         # dont include the HTML if we have no error hint
@@ -186,19 +181,15 @@ to follow your instructor's guidelines to receive credit on your project.
         total_score = sum(self.points.values())
         out_dct['score'] = total_score
         out_dct['max_score'] = total_possible
-        out_dct['output'] = "Total score (%d / %d)" % (
-            total_score, total_possible)
+        out_dct['output'] = f"Total score ({total_score} / {total_possible})"
 
         # individual tests
         tests_out = []
         for name in self.questions:
-            test_out = {}
-            # test name
-            test_out['name'] = name
-            # test score
-            test_out['score'] = self.points[name]
-            test_out['max_score'] = self.maxes[name]
-            # others
+            test_out = {'name': name,
+                        'score': self.points[name],
+                        'max_score': self.maxes[name]}
+
             is_correct = self.points[name] >= self.maxes[name]
             test_out['output'] = "  Question {num} ({points}/{max}) {correct}".format(
                 num=(name[1] if len(name) == 2 else name),
@@ -223,7 +214,7 @@ to follow your instructor's guidelines to receive credit on your project.
         total_possible = sum(self.maxes.values())
         total_score = sum(self.points.values())
         checkOrX = '<span class="incorrect"/>'
-        if (total_score >= total_possible):
+        if total_score >= total_possible:
             checkOrX = '<span class="correct"/>'
         header = """
         <h3>
@@ -241,29 +232,24 @@ to follow your instructor's guidelines to receive credit on your project.
             else:
                 name = q
             checkOrX = '<span class="incorrect"/>'
-            if (self.points[q] >= self.maxes[q]):
+            if self.points[q] >= self.maxes[q]:
                 checkOrX = '<span class="correct"/>'
-            #messages = '\n<br/>\n'.join(self.messages[q])
-            messages = "<pre>%s</pre>" % '\n'.join(self.messages[q])
-            output = """
-        <div class="test">
-          <section>
-          <div class="shortform">
-            Question {q} ({points}/{max}) {checkOrX}
-          </div>
-        <div class="longform">
-          {messages}
-        </div>
-        </section>
-      </div>
-      """.format(q=name,
-                 max=self.maxes[q],
-                 messages=messages,
-                 checkOrX=checkOrX,
-                 points=self.points[q]
-                 )
-            # print "*** output for Question %s " % q[1]
-            # print output
+            # messages = '\n<br/>\n'.join(self.messages[q])
+            messages = '\n'.join(self.messages[q])
+            messages = f'<pre>{messages}</pre>'
+            output = f"""<div class="test">
+                          <section>
+                          <div class="shortform">
+                            Question {name} ({self.points[q]}/{self.maxes[q]}) {checkOrX}
+                          </div>
+                        <div class="longform">
+                          {messages}
+                        </div>
+                        </section>
+                      </div>
+                      """
+            # print("*** output for Question %s " % q[1])
+            # print(output)
             edxOutput.write(output)
         edxOutput.write("</div>")
         edxOutput.close()
@@ -272,7 +258,7 @@ to follow your instructor's guidelines to receive credit on your project.
         edxOutput.close()
 
     def fail(self, message, raw=False):
-        "Sets sanity check bit to false and outputs a message"
+        """Sets sanity check bit to false and outputs a message"""
         self.sane = False
         self.assignZeroCredit()
         self.addMessage(message, raw)
@@ -293,20 +279,19 @@ to follow your instructor's guidelines to receive credit on your project.
 
     def addMessage(self, message, raw=False):
         if not raw:
-                # We assume raw messages, formatted for HTML, are printed separately
-            if self.mute:
-                util.unmutePrint()
+            # We assume raw messages, formatted for HTML, are printed separately
+            if self.mute: util.unmutePrint()
             print('*** ' + message)
-            if self.mute:
-                util.mutePrint()
-            message = cgi.escape(message)
+            if self.mute: util.mutePrint()
+            message = html.escape(message)
         self.messages[self.currentQuestion].append(message)
 
-    def addMessageToEmail(self, message):
-        print("WARNING**** addMessageToEmail is deprecated %s" % message)
+    @staticmethod
+    def addMessageToEmail(message):
+        print(f"WARNING**** addMessageToEmail is deprecated {message}")
         for line in message.split('\n'):
             pass
-            # print '%%% ' + line + ' %%%'
+            # print('%%% ' + line + ' %%%')
             # self.messages[self.currentQuestion].append(line)
 
 

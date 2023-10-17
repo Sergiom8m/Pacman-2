@@ -12,83 +12,70 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
 
-# A minimax tree which interfaces like gameState
-#     state.getNumAgents()
-#     state.isWin()
-#     state.isLose()
-#     state.generateSuccessor(agentIndex, action)
-#     state.getScore()
-#           used by multiAgents.scoreEvaluationFunction, which is the default
-#
-import testClasses
 import json
-
+import random
+import time
 from collections import defaultdict
 from pprint import PrettyPrinter
-pp = PrettyPrinter()
 
-from game import Agent
-from pacman import GameState
-from ghostAgents import RandomGhost, DirectionalGhost
-import random
-import math
-import traceback
-import sys
-import os
 import layout
 import pacman
-import autograder
+import testClasses
+from game import Agent
+from ghostAgents import *
+from pacman import GameState
+
 # import grading
+
 
 VERBOSE = False
 
 
 class MultiagentTreeState(object):
+    # A minimax tree which interfaces like gameState
+    #     state.getNumAgents()
+    #     state.isWin()
+    #     state.isLose()
+    #     state.generateSuccessor(agentIndex, action)
+    #     state.getScore()
+    #           used by multiAgents.scoreEvaluationFunction, which is the default
+    #
     def __init__(self, problem, state):
         self.problem = problem
         self.state = state
 
     def generateSuccessor(self, agentIndex, action):
-        if VERBOSE:
-            print("generateSuccessor(%s, %s, %s) -> %s" % (self.state, agentIndex,
-                                                           action, self.problem.stateToSuccessorMap[self.state][action]))
+        if VERBOSE: print(f"generateSuccessor({self.state}, {agentIndex}, {action}) -> {self.problem.stateToSuccessorMap[self.state][action]}")
+        
         successor = self.problem.stateToSuccessorMap[self.state][action]
         self.problem.generatedStates.add(successor)
+        
         return MultiagentTreeState(self.problem, successor)
 
     def getScore(self):
-        if VERBOSE:
-            print("getScore(%s) -> %s" %
-                  (self.state, self.problem.evaluation[self.state]))
+        if VERBOSE: print(f"getScore({self.state}) -> {self.problem.evaluation[self.state]}")
+        
         if self.state not in self.problem.evaluation:
-            raise Exception(
-                'getScore() called on non-terminal state or before maximum depth achieved.')
+            raise Exception('getScore() called on non-terminal state or before maximum depth achieved.')
+        
         return float(self.problem.evaluation[self.state])
 
     def getLegalActions(self, agentIndex=0):
-        if VERBOSE:
-            print("getLegalActions(%s) -> %s" %
-                  (self.state, self.problem.stateToActions[self.state]))
+        if VERBOSE: print(f"getLegalActions({self.state}) -> {self.problem.stateToActions[self.state]}")
         # if len(self.problem.stateToActions[self.state]) == 0:
-        #    print "WARNING: getLegalActions called on leaf state %s" % (self.state,)
+        #    print "WARNING: getLegalActions called on leaf state {%s}" % (self.state,)
         return list(self.problem.stateToActions[self.state])
 
     def isWin(self):
-        if VERBOSE:
-            print("isWin(%s) -> %s" %
-                  (self.state, self.state in self.problem.winStates))
+        if VERBOSE: print(f"isWin({self.state}) -> {self.state in self.problem.winStates}")
         return self.state in self.problem.winStates
 
     def isLose(self):
-        if VERBOSE:
-            print("isLose(%s) -> %s" %
-                  (self.state, self.state in self.problem.loseStates))
+        if VERBOSE: print(f"isLose({self.state}) -> {self.state in self.problem.loseStates}")
         return self.state in self.problem.loseStates
 
     def getNumAgents(self):
-        if VERBOSE:
-            print("getNumAgents(%s) -> %s" %
-                  (self.state, self.problem.numAgents))
+        if VERBOSE: print(f"getNumAgents({self.state}) -> {self.problem.numAgents}")
         return self.problem.numAgents
 
 
@@ -102,6 +89,7 @@ class MultiagentTreeProblem(object):
         self.evaluation = evaluation
         self.successors = successors
 
+        self.generatedStates = None
         self.reset()
 
         self.stateToSuccessorMap = defaultdict(dict)
@@ -111,7 +99,7 @@ class MultiagentTreeProblem(object):
             self.stateToSuccessorMap[state][action] = nextState
 
     def reset(self):
-        self.generatedStates = set([self.startState.state])
+        self.generatedStates = {self.startState.state}
 
 
 def parseTreeProblem(testDict):
@@ -128,7 +116,7 @@ def parseTreeProblem(testDict):
             state, value = tokens
             evaluation[state] = float(value)
         else:
-            raise Exception("[parseTree] Bad evaluation line: |%s|" % (line,))
+            raise Exception(f"[parseTree] Bad evaluation line: |{line}|")
 
     for line in testDict["successors"].split('\n'):
         tokens = line.split()
@@ -136,7 +124,7 @@ def parseTreeProblem(testDict):
             state, action, nextState = tokens
             successors.append((state, action, nextState))
         else:
-            raise Exception("[parseTree] Bad successor line: |%s|" % (line,))
+            raise Exception(f"[parseTree] Bad successor line: |{line}|")
 
     return MultiagentTreeProblem(numAgents, startState, winStates, loseStates, successors, evaluation)
 
@@ -146,20 +134,26 @@ def run(lay, layName, pac, ghosts, disp, nGames=1, name='games'):
     Runs a few games and outputs their statistics.
     """
     starttime = time.time()
-    print('*** Running %s on' % name, layName, '%d time(s).' % nGames)
-    games = pacman.runGames(lay, pac, ghosts, disp,
-                            nGames, False, catchExceptions=True, timeout=120)
-    print('*** Finished running %s on' % name, layName,
-          'after %d seconds.' % (time.time() - starttime))
-    stats = {'time': time.time() - starttime, 'wins': [g.state.isWin() for g in games].count(True), 'games': games, 'scores': [g.state.getScore() for g in games],
-             'timeouts': [g.agentTimeout for g in games].count(True), 'crashes': [g.agentCrashed for g in games].count(True)}
-    print('*** Won %d out of %d games. Average score: %f ***' %
-          (stats['wins'], len(games), sum(stats['scores']) * 1.0 / len(games)))
+    
+    print(f'*** Running {name} on {layName} {nGames} time(s).')
+    
+    games = pacman.runGames(lay, pac, ghosts, disp, nGames, False, catchExceptions=True, timeout=120)
+    
+    print(f'*** Finished running {name} on {layName} after {time.time() - starttime} seconds.')
+    stats = {'time': time.time() - starttime,
+             'wins': [game.state.isWin() for game in games].count(True),
+             'games': games,
+             'scores': [game.state.getScore() for game in games],
+             'timeouts': [game.agentTimeout for game in games].count(True),
+             'crashes': [game.agentCrashed for game in games].count(True)}
+    print(f'*** Won {stats["wins"]} out of {len(games)} games. Average score: {sum(stats["scores"]) * 1.0 / len(games)} ***')
+    
     return stats
 
 
 class GradingAgent(Agent):
     def __init__(self, seed, studentAgent, optimalActions, altDepthActions, partialPlyBugActions):
+        super().__init__()
         # save student agent and actions of refernce agents
         self.studentAgent = studentAgent
         self.optimalActions = optimalActions
@@ -169,12 +163,9 @@ class GradingAgent(Agent):
         self.suboptimalMoves = []
         self.wrongStatesExplored = -1
         # boolean vectors represent types of implementation the student could have
-        self.actionsConsistentWithOptimal = [
-            True for i in range(len(optimalActions[0]))]
-        self.actionsConsistentWithAlternativeDepth = [
-            True for i in range(len(altDepthActions[0]))]
-        self.actionsConsistentWithPartialPlyBug = [
-            True for i in range(len(partialPlyBugActions[0]))]
+        self.actionsConsistentWithOptimal = [True] * len(optimalActions[0])
+        self.actionsConsistentWithAlternativeDepth = [True] * len(altDepthActions[0])
+        self.actionsConsistentWithPartialPlyBug = [True] * len(partialPlyBugActions[0])
         # keep track of elapsed moves
         self.stepCount = 0
         self.seed = seed
@@ -182,17 +173,20 @@ class GradingAgent(Agent):
     def registerInitialState(self, state):
         if 'registerInitialState' in dir(self.studentAgent):
             self.studentAgent.registerInitialState(state)
+
         random.seed(self.seed)
 
     def getAction(self, state):
         GameState.getAndResetExplored()
-        studentAction = (self.studentAgent.getAction(state),
-                         len(GameState.getAndResetExplored()))
+
+        studentAction = (self.studentAgent.getAction(state), len(GameState.getAndResetExplored()))
         optimalActions = self.optimalActions[self.stepCount]
         altDepthActions = self.altDepthActions[self.stepCount]
         partialPlyBugActions = self.partialPlyBugActions[self.stepCount]
+
         studentOptimalAction = False
         curRightStatesExplored = False
+
         for i in range(len(optimalActions)):
             if studentAction[0] in optimalActions[i][0]:
                 studentOptimalAction = True
@@ -200,19 +194,24 @@ class GradingAgent(Agent):
                 self.actionsConsistentWithOptimal[i] = False
             if studentAction[1] == int(optimalActions[i][1]):
                 curRightStatesExplored = True
+
         if not curRightStatesExplored and self.wrongStatesExplored < 0:
             self.wrongStatesExplored = 1
+
         for i in range(len(altDepthActions)):
             if studentAction[0] not in altDepthActions[i]:
                 self.actionsConsistentWithAlternativeDepth[i] = False
+
         for i in range(len(partialPlyBugActions)):
             if studentAction[0] not in partialPlyBugActions[i]:
                 self.actionsConsistentWithPartialPlyBug[i] = False
+
         if not studentOptimalAction:
-            self.suboptimalMoves.append(
-                (state, studentAction[0], optimalActions[0][0][0]))
+            self.suboptimalMoves.append((state, studentAction[0], optimalActions[0][0][0]))
+
         self.stepCount += 1
         random.seed(self.seed + self.stepCount)
+
         return optimalActions[0][0][0]
 
     def getSuboptimalMoves(self):
@@ -241,9 +240,11 @@ class GradingAgent(Agent):
 
 class PolyAgent(Agent):
     def __init__(self, seed, multiAgents, ourPacOptions, depth):
+        super().__init__()
+
         # prepare our pacman agents
-        solutionAgents, alternativeDepthAgents, partialPlyBugAgents = self.construct_our_pacs(
-            multiAgents, ourPacOptions)
+        solutionAgents, alternativeDepthAgents, partialPlyBugAgents = self.construct_our_pacs(multiAgents, ourPacOptions)
+
         for p in solutionAgents:
             p.depth = depth
         for p in partialPlyBugAgents:
@@ -252,6 +253,7 @@ class PolyAgent(Agent):
             p.depth = max(1, depth - 1)
         for p in alternativeDepthAgents[2:]:
             p.depth = depth + 1
+
         self.solutionAgents = solutionAgents
         self.alternativeDepthAgents = alternativeDepthAgents
         self.partialPlyBugAgents = partialPlyBugAgents
@@ -262,30 +264,32 @@ class PolyAgent(Agent):
         self.seed = seed
         self.stepCount = 0
 
-    def select(self, list, indices):
+    @staticmethod
+    def select(original_list, indices):
         """
         Return a sublist of elements given by indices in list.
         """
-        return [list[i] for i in indices]
+        return [original_list[i] for i in indices]
 
     def construct_our_pacs(self, multiAgents, keyword_dict):
-        pacs_without_stop = [multiAgents.StaffMultiAgentSearchAgent(
-            **keyword_dict) for i in range(3)]
+        pacs_without_stop = [multiAgents.StaffMultiAgentSearchAgent(**keyword_dict) for _ in range(3)]
+
         keyword_dict['keepStop'] = 'True'
-        pacs_with_stop = [multiAgents.StaffMultiAgentSearchAgent(
-            **keyword_dict) for i in range(3)]
+        pacs_with_stop = [multiAgents.StaffMultiAgentSearchAgent(**keyword_dict) for _ in range(3)]
+
         keyword_dict['usePartialPlyBug'] = 'True'
-        partial_ply_bug_pacs = [
-            multiAgents.StaffMultiAgentSearchAgent(**keyword_dict)]
+        partial_ply_bug_pacs = [multiAgents.StaffMultiAgentSearchAgent(**keyword_dict)]
+
         keyword_dict['keepStop'] = 'False'
-        partial_ply_bug_pacs = partial_ply_bug_pacs + \
-            [multiAgents.StaffMultiAgentSearchAgent(**keyword_dict)]
+        partial_ply_bug_pacs += [multiAgents.StaffMultiAgentSearchAgent(**keyword_dict)]
+
         for pac in pacs_with_stop + pacs_without_stop + partial_ply_bug_pacs:
             pac.verbose = False
+
         ourpac = [pacs_with_stop[0], pacs_without_stop[0]]
-        alternative_depth_pacs = self.select(
-            pacs_with_stop + pacs_without_stop, [1, 4, 2, 5])
-        return (ourpac, alternative_depth_pacs, partial_ply_bug_pacs)
+        alternative_depth_pacs = self.select(pacs_with_stop + pacs_without_stop, [1, 4, 2, 5])
+
+        return ourpac, alternative_depth_pacs, partial_ply_bug_pacs
 
     def registerInitialState(self, state):
         for agent in self.solutionAgents + self.alternativeDepthAgents:
@@ -297,24 +301,25 @@ class PolyAgent(Agent):
         # survey agents
         GameState.getAndResetExplored()
         optimalActionLists = []
+
         for agent in self.solutionAgents:
-            optimalActionLists.append((agent.getBestPacmanActions(
-                state)[0], len(GameState.getAndResetExplored())))
-        alternativeDepthLists = [agent.getBestPacmanActions(
-            state)[0] for agent in self.alternativeDepthAgents]
-        partialPlyBugLists = [agent.getBestPacmanActions(
-            state)[0] for agent in self.partialPlyBugAgents]
+            optimalActionLists.append((agent.getBestPacmanActions(state)[0], len(GameState.getAndResetExplored())))
+
+        alternativeDepthLists = [agent.getBestPacmanActions(state)[0] for agent in self.alternativeDepthAgents]
+        partialPlyBugLists = [agent.getBestPacmanActions(state)[0] for agent in self.partialPlyBugAgents]
+
         # record responses
         self.optimalActionLists.append(optimalActionLists)
         self.alternativeDepthLists.append(alternativeDepthLists)
         self.partialPlyBugLists.append(partialPlyBugLists)
         self.stepCount += 1
+
         random.seed(self.seed + self.stepCount)
         return optimalActionLists[0][0][0]
 
     def getTraces(self):
         # return traces from individual agents
-        return (self.optimalActionLists, self.alternativeDepthLists, self.partialPlyBugLists)
+        return self.optimalActionLists, self.alternativeDepthLists, self.partialPlyBugLists
 
 
 class PacmanGameTreeTest(testClasses.TestCase):
@@ -332,27 +337,27 @@ class PacmanGameTreeTest(testClasses.TestCase):
         # load student code and staff code solutions
         multiAgents = moduleDict['multiAgents']
         studentAgent = getattr(multiAgents, self.alg)(depth=self.depth)
-        allActions = [json.loads(x)
-                      for x in solutionDict['optimalActions'].split('\n')]
-        altDepthActions = [json.loads(
-            x) for x in solutionDict['altDepthActions'].split('\n')]
-        partialPlyBugActions = [json.loads(
-            x) for x in solutionDict['partialPlyBugActions'].split('\n')]
+        allActions = [json.loads(x) for x in solutionDict['optimalActions'].split('\n')]
+        altDepthActions = [json.loads(x) for x in solutionDict['altDepthActions'].split('\n')]
+        partialPlyBugActions = [json.loads(x) for x in solutionDict['partialPlyBugActions'].split('\n')]
+
         # set up game state and play a game
         random.seed(self.seed)
-        lay = layout.Layout([l.strip() for l in self.layout_text.split('\n')])
-        pac = GradingAgent(self.seed, studentAgent, allActions,
-                           altDepthActions, partialPlyBugActions)
+        lay = layout.Layout([line.strip() for line in self.layout_text.split('\n')])
+        pac = GradingAgent(self.seed, studentAgent, allActions, altDepthActions, partialPlyBugActions)
+
         # check return codes and assign grades
         disp = self.question.getDisplay()
-        stats = run(lay, self.layout_name, pac, [DirectionalGhost(
-            i + 1) for i in range(2)], disp, name=self.alg)
+        stats = run(lay, self.layout_name, pac, [DirectionalGhost(i + 1) for i in range(2)], disp, name=self.alg)
+
         if stats['timeouts'] > 0:
             self.addMessage('Agent timed out on smallClassic.  No credit')
             return self.testFail(grades)
+
         if stats['crashes'] > 0:
             self.addMessage('Agent crashed on smallClassic.  No credit')
             return self.testFail(grades)
+
         code = pac.checkFailure()
         if code == 0:
             return self.testPass(grades)
@@ -372,21 +377,21 @@ class PacmanGameTreeTest(testClasses.TestCase):
             moves = pac.getSuboptimalMoves()
             state, studentMove, optMove = random.choice(moves)
             self.addMessage('Bug: Suboptimal moves')
-            self.addMessage('State:%s\nStudent Move:%s\nOptimal Move:%s' % (
-                state, studentMove, optMove))
+            self.addMessage(f'State:{state}\nStudent Move:{studentMove}\nOptimal Move:{optMove}')
             return self.testFail(grades)
 
-    def writeList(self, handle, name, list):
-        handle.write('%s: """\n' % name)
-        for l in list:
-            handle.write('%s\n' % json.dumps(l))
+    @staticmethod
+    def writeList(handle, name, item_list):
+        handle.write(f'{name}: """\n')
+        for item in item_list:
+            handle.write(f'{json.dumps(item)}\n')
         handle.write('"""\n')
 
     def writeSolution(self, moduleDict, filePath):
         # load module, set seed, create ghosts and macman, run game
         multiAgents = moduleDict['multiAgents']
         random.seed(self.seed)
-        lay = layout.Layout([l.strip() for l in self.layout_text.split('\n')])
+        lay = layout.Layout([line.strip() for line in self.layout_text.split('\n')])
         if self.alg == 'ExpectimaxAgent':
             ourPacOptions = {'expectimax': 'True'}
         elif self.alg == 'AlphaBetaAgent':
@@ -395,8 +400,7 @@ class PacmanGameTreeTest(testClasses.TestCase):
             ourPacOptions = {}
         pac = PolyAgent(self.seed, multiAgents, ourPacOptions, self.depth)
         disp = self.question.getDisplay()
-        run(lay, self.layout_name, pac, [DirectionalGhost(
-            i + 1) for i in range(2)], disp, name=self.alg)
+        run(lay, self.layout_name, pac, [DirectionalGhost(i + 1) for i in range(2)], disp, name=self.alg)
         (optimalActions, altDepthActions, partialPlyBugActions) = pac.getTraces()
         # recover traces and record to file
         handle = open(filePath, 'w')
@@ -435,16 +439,13 @@ class GraphGameTreeTest(testClasses.TestCase):
 
         fail = False
         if action != goldAction:
-            self.addMessage('Incorrect move for depth=%s' % (self.depth,))
-            self.addMessage(
-                '    Student move: %s\n    Optimal move: %s' % (action, goldAction))
+            self.addMessage(f'Incorrect move for depth={self.depth}')
+            self.addMessage(f'    Student move: {action}\n    Optimal move: {goldAction}')
             fail = True
 
         if generated != goldGenerated:
-            self.addMessage(
-                'Incorrect generated nodes for depth=%s' % (self.depth,))
-            self.addMessage('    Student generated nodes: %s\n    Correct generated nodes: %s' % (
-                generated, goldGenerated))
+            self.addMessage(f'Incorrect generated nodes for depth={self.depth}')
+            self.addMessage(f'    Student generated nodes: {generated}\n    Correct generated nodes: {goldGenerated}')
             fail = True
 
         if fail:
@@ -457,14 +458,10 @@ class GraphGameTreeTest(testClasses.TestCase):
         multiAgents = moduleDict['multiAgents']
         action, generated = self.solveProblem(multiAgents)
         with open(filePath, 'w') as handle:
-            handle.write('# This is the solution file for %s.\n' % self.path)
-            handle.write('action: "%s"\n' % (action,))
-            handle.write('generated: "%s"\n' % (generated,))
+            handle.write(f'# This is the solution file for {self.path}.\n')
+            handle.write(f'action: "{action}"\n')
+            handle.write(f'generated: "{generated}"\n')
         return True
-
-
-import time
-from util import TimeoutFunction
 
 
 class EvalAgentTest(testClasses.TestCase):
@@ -478,30 +475,23 @@ class EvalAgentTest(testClasses.TestCase):
         self.seed = int(testDict['randomSeed'])
         self.numGames = int(testDict['numGames'])
 
-        self.scoreMinimum = int(
-            testDict['scoreMinimum']) if 'scoreMinimum' in testDict else None
-        self.nonTimeoutMinimum = int(
-            testDict['nonTimeoutMinimum']) if 'nonTimeoutMinimum' in testDict else None
-        self.winsMinimum = int(
-            testDict['winsMinimum']) if 'winsMinimum' in testDict else None
+        self.scoreMinimum = int(testDict['scoreMinimum']) if 'scoreMinimum' in testDict else None
+        self.nonTimeoutMinimum = int(testDict['nonTimeoutMinimum']) if 'nonTimeoutMinimum' in testDict else None
+        self.winsMinimum = int(testDict['winsMinimum']) if 'winsMinimum' in testDict else None
 
-        self.scoreThresholds = [int(s) for s in testDict.get(
-            'scoreThresholds', '').split()]
-        self.nonTimeoutThresholds = [int(s) for s in testDict.get(
-            'nonTimeoutThresholds', '').split()]
-        self.winsThresholds = [int(s) for s in testDict.get(
-            'winsThresholds', '').split()]
+        self.scoreThresholds = [int(s) for s in testDict.get('scoreThresholds', '').split()]
+        self.nonTimeoutThresholds = [int(s) for s in testDict.get('nonTimeoutThresholds', '').split()]
+        self.winsThresholds = [int(s) for s in testDict.get('winsThresholds', '').split()]
 
         self.maxPoints = sum([len(t) for t in [
-                             self.scoreThresholds, self.nonTimeoutThresholds, self.winsThresholds]])
+            self.scoreThresholds, self.nonTimeoutThresholds, self.winsThresholds]])
         self.agentArgs = testDict.get('agentArgs', '')
 
     def execute(self, grades, moduleDict, solutionDict):
         startTime = time.time()
 
         agentType = getattr(moduleDict['multiAgents'], self.agentName)
-        agentOpts = pacman.parseAgentArgs(
-            self.agentArgs) if self.agentArgs != '' else {}
+        agentOpts = pacman.parseAgentArgs(self.agentArgs) if self.agentArgs != '' else {}
         agent = agentType(**agentOpts)
 
         lay = layout.getLayout(self.layoutName, 3)
@@ -513,9 +503,12 @@ class EvalAgentTest(testClasses.TestCase):
                                 False, catchExceptions=True, timeout=self.maxTime)
         totalTime = time.time() - startTime
 
-        stats = {'time': totalTime, 'wins': [g.state.isWin() for g in games].count(True),
-                 'games': games, 'scores': [g.state.getScore() for g in games],
-                 'timeouts': [g.agentTimeout for g in games].count(True), 'crashes': [g.agentCrashed for g in games].count(True)}
+        stats = {'time': totalTime,
+                 'wins': [game.state.isWin() for game in games].count(True),
+                 'games': games,
+                 'scores': [game.state.getScore() for game in games],
+                 'timeouts': [game.agentTimeout for game in games].count(True),
+                 'crashes': [game.agentCrashed for game in games].count(True)}
 
         averageScore = sum(stats['scores']) / float(len(stats['scores']))
         nonTimeouts = self.numGames - stats['timeouts']
@@ -523,47 +516,42 @@ class EvalAgentTest(testClasses.TestCase):
 
         def gradeThreshold(value, minimum, thresholds, name):
             points = 0
-            passed = (minimum == None) or (value >= minimum)
+            passed = (minimum is None) or (value >= minimum)
             if passed:
                 for t in thresholds:
                     if value >= t:
                         points += 1
-            return (passed, points, value, minimum, thresholds, name)
+            return passed, points, value, minimum, thresholds, name
 
         results = [gradeThreshold(averageScore, self.scoreMinimum, self.scoreThresholds, "average score"),
-                   gradeThreshold(nonTimeouts, self.nonTimeoutMinimum,
-                                  self.nonTimeoutThresholds, "games not timed out"),
+                   gradeThreshold(nonTimeouts, self.nonTimeoutMinimum, self.nonTimeoutThresholds, "games not timed out"),
                    gradeThreshold(wins, self.winsMinimum, self.winsThresholds, "wins")]
 
         totalPoints = 0
         for passed, points, value, minimum, thresholds, name in results:
-            if minimum == None and len(thresholds) == 0:
+            if minimum is None and len(thresholds) == 0:
                 continue
 
             # print passed, points, value, minimum, thresholds, name
             totalPoints += points
             if not passed:
                 assert points == 0
-                self.addMessage(
-                    "%s %s (fail: below minimum value %s)" % (value, name, minimum))
+                self.addMessage(f"{value} {name} (fail: below minimum value {minimum})")
             else:
-                self.addMessage("%s %s (%s of %s points)" %
-                                (value, name, points, len(thresholds)))
+                self.addMessage(f"{value} {name} ({points} of {len(thresholds)} points)")
 
-            if minimum != None:
+            if minimum is not None:
                 self.addMessage("    Grading scheme:")
-                self.addMessage("     < %s:  fail" % (minimum,))
+                self.addMessage(f"     < {minimum}:  fail")
                 if len(thresholds) == 0 or minimum != thresholds[0]:
-                    self.addMessage("    >= %s:  0 points" % (minimum,))
+                    self.addMessage(f"    >= {minimum}:  0 points")
                 for idx, threshold in enumerate(thresholds):
-                    self.addMessage("    >= %s:  %s points" %
-                                    (threshold, idx+1))
+                    self.addMessage(f"    >= {threshold}:  {idx + 1} points")
             elif len(thresholds) > 0:
                 self.addMessage("    Grading scheme:")
-                self.addMessage("     < %s:  0 points" % (thresholds[0],))
+                self.addMessage(f"     < {thresholds[0]}:  0 points")
                 for idx, threshold in enumerate(thresholds):
-                    self.addMessage("    >= %s:  %s points" %
-                                    (threshold, idx+1))
+                    self.addMessage(f"    >= {threshold}:  {idx + 1} points")
 
         if any([not passed for passed, _, _, _, _, _ in results]):
             totalPoints = 0
@@ -572,7 +560,7 @@ class EvalAgentTest(testClasses.TestCase):
 
     def writeSolution(self, moduleDict, filePath):
         handle = open(filePath, 'w')
-        handle.write('# This is the solution file for %s.\n' % self.path)
+        handle.write(f'# This is the solution file for {self.path}.\n')
         handle.write('# File intentionally blank.\n')
         handle.close()
         return True

@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-#
+# 
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -18,7 +18,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-#
+# 
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -26,11 +26,14 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
 
-import sys
-import inspect
 import heapq
+import inspect
 import random
-import io
+import signal
+import sys
+import time
+
+from collections import deque
 
 
 class FixedRandom:
@@ -135,52 +138,105 @@ class FixedRandom:
 
 
 class Stack:
-    "A container with a last-in-first-out (LIFO) queuing policy."
+    """A container with a last-in-first-out (LIFO) queuing policy."""
 
-    def __init__(self):
-        self.list = []
+    def __init__(self, initial_values=None):
+        # Initial values must be a list in the next order: [first, second, third]
+        # So the first out would be the 'third' item
+        if initial_values is None:
+            self.stack = deque()
+        else:
+            self.stack = deque(initial_values)
 
     def push(self, item):
-        "Push 'item' onto the stack"
-        self.list.append(item)
+        """Push 'item' onto the stack"""
+        self.stack.append(item)
 
     def pop(self):
-        "Pop the most recently pushed item from the stack"
-        return self.list.pop()
+        """Pop the most recently pushed item from the stack"""
+        return self.stack.pop()
 
     def isEmpty(self):
-        "Returns true if the stack is empty"
-        return len(self.list) == 0
+        """Returns true if the stack is empty"""
+        return not bool(self)
+
+    def head(self):
+        return self.stack[0]
+
+    def __bool__(self):
+        return bool(self.stack)
+
+    def __iter__(self):
+        # **IMPORTANT**: It will iterate poping objects
+        # You can add new objects while iterating
+        # It will stop iterating when no more items are left (empty stack)
+        while self.stack:
+            yield self.pop()
+
+    def __getitem__(self, item):
+        return self.stack[item]
+
+    def __len__(self):
+        return len(self.stack)
+
+    def __contains__(self, item):
+        return item in self.stack
 
 
 class Queue:
-    "A container with a first-in-first-out (FIFO) queuing policy."
+    """A container with a first-in-first-out (FIFO) queuing policy."""
 
-    def __init__(self):
-        self.list = []
+    def __init__(self, initial_values=None):
+        # Initial values must be a list in the next order: [first, second, third]
+        if initial_values is None:
+            self.queue = deque()
+        else:
+            self.queue = deque(initial_values)
 
     def push(self, item):
-        "Enqueue the 'item' into the queue"
-        self.list.insert(0, item)
+        """Enqueue the 'item' into the queue"""
+        self.queue.append(item)
 
     def pop(self):
         """
-        Dequeue the earliest enqueued item still in the queue. This
-        operation removes the item from the queue.
+          Dequeue the earliest enqueued item still in the queue.
+          This operation removes the item from the queue.
         """
-        return self.list.pop()
+        return self.queue.popleft()
 
     def isEmpty(self):
-        "Returns true if the queue is empty"
-        return len(self.list) == 0
+        """Returns true if the queue is empty"""
+        return not bool(self)
+
+    def head(self):
+        return self.queue[0]
+
+    def __bool__(self):
+        return bool(self.queue)
+
+    def __iter__(self):
+        # **IMPORTANT**: It will iterate poping objects
+        # You can add new objects while iterating
+        # It will stop iterating when no more items are left (empty queue)
+        while self.queue:
+            yield self.pop()
+
+    def __getitem__(self, item):
+        return self.queue[item]
+
+    def __len__(self):
+        return len(self.queue)
+
+    def __contains__(self, item):
+        return item in self.queue
 
 
 class PriorityQueue:
     """
-    Implements a priority queue data structure. Each inserted item
-    has a priority associated with it and the client is usually interested
-    in quick retrieval of the lowest-priority item in the queue. This
-    data structure allows O(1) access to the lowest-priority item.
+      Implements a priority queue data structure. Each inserted item
+      has a priority associated with it and the client is usually interested
+      in quick retrieval of the lowest-priority item in the queue. This
+      data structure allows O(1) access to the lowest-priority item.
     """
 
     def __init__(self):
@@ -197,7 +253,7 @@ class PriorityQueue:
         return item
 
     def isEmpty(self):
-        return len(self.heap) == 0
+        return not bool(self)
 
     def update(self, item, priority):
         # If item already in priority queue with higher priority, update its priority and rebuild the heap.
@@ -214,6 +270,25 @@ class PriorityQueue:
         else:
             self.push(item, priority)
 
+    def __bool__(self):
+        return bool(self.heap)
+
+    def __iter__(self):
+        # **IMPORTANT**: It will iterate poping objects
+        # You can add new objects while iterating
+        # It will stop iterating when no more items are left (empty heap)
+        while self.heap:
+            yield self.pop()
+
+    def __getitem__(self, item):
+        return self.heap[item]
+
+    def __len__(self):
+        return len(self.heap)
+
+    def __contains__(self, item):
+        return item in self.heap
+
 
 class PriorityQueueWithFunction(PriorityQueue):
     """
@@ -224,24 +299,24 @@ class PriorityQueueWithFunction(PriorityQueue):
     """
 
     def __init__(self, priorityFunction):
-        "priorityFunction (item) -> priority"
-        self.priorityFunction = priorityFunction      # store the priority function
-        PriorityQueue.__init__(self)        # super-class initializer
+        """priorityFunction (item) -> priority"""
+        super().__init__()
+        self.priorityFunction = priorityFunction  # store the priority function
 
-    def push(self, item):
-        "Adds an item to the queue with priority from the priority function"
+    def push(self, item, *args):
+        """Adds an item to the queue with priority from the priority function"""
         PriorityQueue.push(self, item, self.priorityFunction(item))
 
 
 def manhattanDistance(xy1, xy2):
-    "Returns the Manhattan distance between points xy1 and xy2"
-    return abs(xy1[0] - xy2[0]) + abs(xy1[1] - xy2[1])
+    """Returns the Manhattan distance between points xy1 and xy2"""
+    return sum([abs(component_1 - component_2) for component_1, component_2 in zip(xy1, xy2)])
 
 
 """
-Data structures and functions useful for various course projects
+  Data structures and functions useful for various course projects
 
-The search project should not need anything below this line.
+  The search project should not need anything below this line.
 """
 
 
@@ -256,12 +331,12 @@ class Counter(dict):
     all keys are defaulted to have value 0.  Using a dictionary:
 
     a = {}
-    print a['test']
+    print(a['test'])
 
     would give an error, while the Counter class analogue:
 
     >>> a = Counter()
-    >>> print a['test']
+    >>> print(a['test'])
     0
 
     returns the default 0 value. Note that to reference a key
@@ -270,14 +345,14 @@ class Counter(dict):
 
     >>> a = Counter()
     >>> a['test'] = 2
-    >>> print a['test']
+    >>> print(a['test'])
     2
 
     This is very useful for counting things without initializing their counts,
     see for example:
 
     >>> a['blah'] += 1
-    >>> print a['blah']
+    >>> print(a['blah'])
     1
 
     The counter also includes additional functionality useful in implementing
@@ -308,14 +383,9 @@ class Counter(dict):
         """
         Returns the key with the highest value.
         """
-        if len(list(self.keys())) == 0:
-            return None
-        all = list(self.items())
-        values = [x[1] for x in all]
-        maxIndex = values.index(max(values))
-        return all[maxIndex][0]
+        return max(self, key=self.get) if self else None
 
-    def sortedKeys(self):
+    def sortedKeys(self, reverse=True):
         """
         Returns a list of keys sorted by their values.  Keys
         with the highest values will appear first.
@@ -327,11 +397,7 @@ class Counter(dict):
         >>> a.sortedKeys()
         ['second', 'third', 'first']
         """
-        sortedItems = list(self.items())
-
-        def compare(x, y): return sign(y[1] - x[1])
-        sortedItems.sort(cmp=compare)
-        return [x[0] for x in sortedItems]
+        return [key for key, value in sorted(self.items(), key=lambda item: item[1], reverse=reverse)]
 
     def totalCount(self):
         """
@@ -347,9 +413,8 @@ class Counter(dict):
         Counter will result in an error.
         """
         total = float(self.totalCount())
-        if total == 0:
-            return
-        for key in list(self.keys()):
+        if total == 0: return
+        for key in self.keys():
             self[key] = self[key] / total
 
     def divideAll(self, divisor):
@@ -407,7 +472,7 @@ class Counter(dict):
         >>> a['first']
         1
         """
-        for key, value in list(y.items()):
+        for key, value in y.items():
             self[key] += value
 
     def __add__(self, y):
@@ -468,37 +533,34 @@ def raiseNotDefined():
     line = inspect.stack()[1][2]
     method = inspect.stack()[1][3]
 
-    print("*** Method not implemented: %s at line %s of %s" %
-          (method, line, fileName))
+    print(f"*** Method not implemented: {method} at line {line} of {fileName}")
     sys.exit(1)
 
 
 def normalize(vectorOrCounter):
     """
-    Normalize a vector or counter by dividing each value by the sum of all values
+    normalize a vector or counter by dividing each value by the sum of all values
     """
     normalizedCounter = Counter()
-    if type(vectorOrCounter) == type(normalizedCounter):
+    if isinstance(vectorOrCounter, type(normalizedCounter)):
         counter = vectorOrCounter
         total = float(counter.totalCount())
-        if total == 0:
-            return counter
-        for key in list(counter.keys()):
+        if total == 0: return counter
+        for key in counter.keys():
             value = counter[key]
             normalizedCounter[key] = value / total
         return normalizedCounter
     else:
         vector = vectorOrCounter
         s = float(sum(vector))
-        if s == 0:
-            return vector
+        if s == 0: return vector
         return [el / s for el in vector]
 
 
 def nSample(distribution, values, n):
     if sum(distribution) != 1:
         distribution = normalize(distribution)
-    rand = [random.random() for i in range(n)]
+    rand = [random.random() for _ in range(n)]
     rand.sort()
     samples = []
     samplePos, distPos, cdf = 0, 0, distribution[0]
@@ -513,7 +575,7 @@ def nSample(distribution, values, n):
 
 
 def sample(distribution, values=None):
-    if type(distribution) == Counter:
+    if isinstance(distribution, Counter):
         items = sorted(distribution.items())
         distribution = [i[1] for i in items]
         values = [i[0] for i in items]
@@ -534,8 +596,8 @@ def sampleFromCounter(ctr):
 
 def getProbability(value, distribution, values):
     """
-    Gives the probability of a value under a discrete distribution
-    defined by (distributions, values).
+      Gives the probability of a value under a discrete distribution
+      defined by (distributions, values).
     """
     total = 0.0
     for prob, val in zip(distribution, values):
@@ -550,15 +612,14 @@ def flipCoin(p):
 
 
 def chooseFromDistribution(distribution):
-    "Takes either a counter or a list of (prob, key) pairs and samples"
-    if type(distribution) == dict or type(distribution) == Counter:
+    """Takes either a counter or a list of (prob, key) pairs and samples"""
+    if isinstance(distribution, dict) or isinstance(distribution, Counter):
         return sample(distribution)
     r = random.random()
     base = 0.0
     for prob, element in distribution:
         base += prob
-        if r <= base:
-            return element
+        if r <= base: return element
 
 
 def nearestPoint(pos):
@@ -569,24 +630,21 @@ def nearestPoint(pos):
 
     grid_row = int(current_row + 0.5)
     grid_col = int(current_col + 0.5)
-    return (grid_row, grid_col)
+    return grid_row, grid_col
 
 
 def sign(x):
     """
     Returns 1 or -1 depending on the sign of x
     """
-    if(x >= 0):
-        return 1
-    else:
-        return -1
+    return 1 if x >= 0 else -1
 
 
 def arrayInvert(array):
     """
     Inverts a matrix stored as a list of lists.
     """
-    result = [[] for i in array]
+    result = [[] for _ in array]
     for outer in array:
         for inner in range(len(outer)):
             result[inner].append(outer[inner])
@@ -613,30 +671,23 @@ def lookup(name, namespace):
     """
     dots = name.count('.')
     if dots > 0:
-        moduleName, objName = '.'.join(
-            name.split('.')[:-1]), name.split('.')[-1]
+        moduleName, objName = '.'.join(name.split('.')[:-1]), name.split('.')[-1]
         module = __import__(moduleName)
         return getattr(module, objName)
     else:
-        modules = [obj for obj in list(namespace.values()) if str(
-            type(obj)) == "<type 'module'>"]
-        options = [getattr(module, name)
-                   for module in modules if name in dir(module)]
-        options += [obj[1]
-                    for obj in list(namespace.items()) if obj[0] == name]
-        if len(options) == 1:
-            return options[0]
-        if len(options) > 1:
-            raise Exception('Name conflict for %s')
-        raise Exception('%s not found as a method or class' % name)
+        modules = [obj for obj in namespace.values() if str(type(obj)) == "<type 'module'>"]
+        options = [getattr(module, name) for module in modules if name in dir(module)]
+        options += [obj[1] for obj in namespace.items() if obj[0] == name]
+        if len(options) == 1: return options[0]
+        if len(options) > 1: raise Exception('Name conflict for %s')
+        raise Exception(f'{name} not found as a method or class')
 
 
 def pause():
     """
     Pauses the output stream awaiting user feedback.
     """
-    print("<Press enter/return to continue>")
-    input()
+    input("<Press enter/return to continue>")
 
 
 # code to handle timeouts
@@ -647,9 +698,6 @@ def pause():
 # of active time outs.  Currently, questions which have test cases calling
 # this have all student code so wrapped.
 #
-import signal
-import time
-
 
 class TimeoutFunctionException(Exception):
     """Exception to raise on a timeout"""
@@ -702,9 +750,9 @@ def mutePrint():
     _MUTED = True
 
     _ORIGINAL_STDOUT = sys.stdout
-    #_ORIGINAL_STDERR = sys.stderr
+    # _ORIGINAL_STDERR = sys.stderr
     sys.stdout = WritableNull()
-    #sys.stderr = WritableNull()
+    # sys.stderr = WritableNull()
 
 
 def unmutePrint():
@@ -714,4 +762,4 @@ def unmutePrint():
     _MUTED = False
 
     sys.stdout = _ORIGINAL_STDOUT
-    #sys.stderr = _ORIGINAL_STDERR
+    # sys.stderr = _ORIGINAL_STDERR
