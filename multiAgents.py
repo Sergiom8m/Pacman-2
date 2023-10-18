@@ -67,6 +67,28 @@ class ReflexAgent(Agent):
         to create a masterful evaluation function.
         """
 
+        '''
+        #Comida
+        foodList=newFood.asList()
+        minDistance=-1
+        for food in foodList:
+            distanciaF=util.manhattanDistance(food,newPos)
+            if(minDistance>=distanciaF or minDistance==-1):
+                minDistance=distanciaF
+
+
+        #Fantasma
+        for ghost in newGhostStates:
+            distanciaG=util.manhattanDistance(ghost.getPosition(),newPos)
+            # si hay mas?? distanciaSum=distanciaSum+distanciaG
+
+        if(distanciaG>1):
+            return successorGameState.getScore()+(1/minDistance)+(1/distanciaG)
+
+        else:
+            return successorGameState.getScore()+(1/minDistance)
+        '''
+
         # Useful information you can extract from a GameState (pacman.py)
         successorGameState = currentGameState.generatePacmanSuccessor(action)
 
