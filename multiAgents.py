@@ -290,6 +290,8 @@ class MinimaxAgent(MultiAgentSearchAgent):
             return v
 
         legal_actions = game_state.getLegalActions(0)  # OBTENER ACCIONES POSIBLES PARA PACMAN
+
+        # INICIALIZAR VARIABLES
         best_action = None
         best_value = float('-inf')
 
@@ -315,52 +317,77 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
 
         def value(state, agentIndex, depth, alpha, beta):
-            # terminal state
+
+            # ESTADOS TERMINALES (GANAR/PERDER O PROFUNDIDAD ALCANZADA)
             if depth == 0 or state.isWin() or state.isLose():
                 return self.evaluationFunction(state)
-            # next agent is min (ghost)
+
+            # AGENTES FANTASMA
             elif agentIndex >= 1:
                 return min_value(state, agentIndex, depth, alpha, beta)
-            # next agent is max (pacman)
+
+            # AGENTE PACMAN
             else:
                 return max_value(state, depth, alpha, beta)
 
-        def max_value(state, depth, alpha, beta):
+        def max_value(state, depth, alpha, beta): # SIEMPRE SE EJECUTARA PARA PACMAN
+
             v = float('-inf')
-            legalActions = state.getLegalActions(0)
+            legalActions = state.getLegalActions(0) # ACCIONES POSIBLES PARA PACMAN
+
             for action in legalActions:
                 successor = state.generateSuccessor(0, action)
-                v = max(v, value(successor, 1, depth, alpha, beta))
-                if v > beta: return v
+                v = max(v, value(successor, 1, depth, alpha, beta))  # ELEGIR EL MAXIMO DE LOS SUCESORES
+
+                # GESTION DE LA PODA
+                if v > beta:
+                    return v
                 alpha = max(alpha, v)
+
             return v
 
-        def min_value(state, agentIndex, depth, alpha, beta):
+        def min_value(state, agentIndex, depth, alpha, beta):  # SE EJECUTA EN LOS DIFERENTES FANTASMAS
+
             v = float('inf')
             legalActions = state.getLegalActions(agentIndex)
+
             for action in legalActions:
                 successor = state.generateSuccessor(agentIndex, action)
+
+                # SI ES EL ULTIMO FANTASMA, DESPUES PACMAN
                 if agentIndex == state.getNumAgents() - 1:
                     v = min(v, value(successor, 0, depth - 1, alpha, beta))
+
+                # SI NO LE TOCARA A OTRO FANTASMA
                 else:
                     v = min(v, value(successor, agentIndex + 1, depth, alpha, beta))
-                if v < alpha: return v
+
+                # GESTION DE LA PODA
+                if v < alpha:
+                    return v
                 beta = min(beta, v)
+
             return v
 
-        legal_actions = game_state.getLegalActions(0)
+        legal_actions = game_state.getLegalActions(0) # OBTENER ACCIONES POSIBLES PARA PACMAN
+
+        # INICIALIZAR VARIABLES
         best_action = None
         best_value = float('-inf')
         alpha = float('-inf')
         beta = float('inf')
 
+        # CALCULAR UN VALOR VALUE PARA CADA ACCION POSIBLE
         for action in legal_actions:
             sucessor = game_state.generateSuccessor(0, action)
             v = value(sucessor, 1, self.depth, alpha, beta)
             if v > best_value:
                 best_value = v
                 best_action = action
-            alpha = max(alpha, best_value)  # v1 sin esto --> 0/5
+
+            # ACTUALIZAR EL VALOR DE ALPHA
+            alpha = max(alpha, best_value)
+
         return best_action
 
 
