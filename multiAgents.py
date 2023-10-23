@@ -403,8 +403,67 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         All ghosts should be modeled as choosing uniformly at random from their
         legal moves.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        def value(state, agentIndex, depth):
+
+            # ESTADOS TERMINALES (GANAR/PERDER O PROFUNDIDAD ALCANZADA)
+            if depth == 0 or state.isWin() or state.isLose():
+                return self.evaluationFunction(state)
+
+            # AGENTES FANTASMA
+            elif agentIndex >= 1:
+                return exp_value(state, agentIndex, depth)
+
+            # AGENTE PACMAN
+            else:
+                return max_value(state, depth)
+
+        def max_value(state, depth):  # SIEMPRE SE EJECUTARA PARA PACMAN
+
+            v = float('-inf')
+            legalActions = state.getLegalActions(0)  # ACCIONES POSIBLES PARA PACMAN
+
+            for action in legalActions:
+                successor = state.generateSuccessor(0, action)
+                v = max(v, value(successor, 1, depth))  # ELEGIR EL MAXIMO DE LOS SUCESORES
+
+            return v
+
+        def exp_value(state, agentIndex, depth):  # SE EJECUTA EN LOS DIFERENTES FANTASMAS
+
+            v = 0
+            legalActions = state.getLegalActions(agentIndex)
+            p = 1 / len(legalActions)
+
+            for action in legalActions:
+                successor = state.generateSuccessor(agentIndex, action)
+
+                # SI ES EL ULTIMO FANTASMA, DESPUES PACMAN
+                if agentIndex == state.getNumAgents() - 1:
+                    v += p * value(successor, 0, depth - 1)
+
+                # SI NO LE TOCARA A OTRO FANTASMA
+                else:
+                    v += p * value(successor, agentIndex + 1, depth)
+
+            return v
+
+        legal_actions = gameState.getLegalActions(0)  # OBTENER ACCIONES POSIBLES PARA PACMAN
+
+        # INICIALIZAR VARIABLES
+        best_action = None
+        best_value = float('-inf')
+
+        # CALCULAR UN VALOR VALUE PARA CADA ACCION POSIBLE
+        for action in legal_actions:
+            sucessor = gameState.generateSuccessor(0, action)
+            v = value(sucessor, 1, self.depth)
+            if v > best_value:
+                best_value = v
+                best_action = action
+
+        return best_action
+
 
 
 def betterEvaluationFunction(currentGameState):
@@ -414,14 +473,7 @@ def betterEvaluationFunction(currentGameState):
 
     DESCRIPTION: <write something here so we know what you did>
     """
-    pacman_pos = currentGameState.getPacmanPosition()
-    newFood = currentGameState.getFood()
-    newGhostStates = currentGameState.getGhostStates()
-    newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
-
-    "*** YOUR CODE HERE ***"
     util.raiseNotDefined()
-
 
 # Abbreviation
 better = betterEvaluationFunction
