@@ -17,6 +17,7 @@ import random
 import util
 from game import Agent
 from util import manhattanDistance
+import sys
 
 
 class ReflexAgent(Agent):
@@ -68,25 +69,37 @@ class ReflexAgent(Agent):
         """
 
         '''
-        #Comida
-        foodList=newFood.asList()
-        minDistance=-1
-        for food in foodList:
-            distanciaF=util.manhattanDistance(food,newPos)
-            if(minDistance>=distanciaF or minDistance==-1):
-                minDistance=distanciaF
+        successorGameState = currentGameState.generatePacmanSuccessor(action)
+        newPos = successorGameState.getPacmanPosition()
+        newFood = successorGameState.getFood()
+        newGhostStates = successorGameState.getGhostStates()
+        newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
+        comidaMin=0
+        #encontrar la comida o capsula mas cercana
+        comidas=newFood.asList()+currentGameState.getCapsules()
+        for food in comidas:
+            comidaDist=util.manhattanDistance(food,newPos)
+            if(comidaMin>=comidaDist or comidaMin==0):
+                comidaMin=comidaDist
 
-        #Fantasma
-        for ghost in newGhostStates:
-            distanciaG=util.manhattanDistance(ghost.getPosition(),newPos)
-            # si hay mas?? distanciaSum=distanciaSum+distanciaG
-
-        if(distanciaG>1):
-            return successorGameState.getScore()+(1/minDistance)+(1/distanciaG)
-
+        #fantasma mas cercano
+        fantasmaMin=0
+        for fantasma in newGhostStates:
+            fantasmaDist=util.manhattanDistance(fantasma.getPosition(),newPos)
+            if(fantasmaMin>=fantasmaDist or fantasmaMin==0):
+                fantasmaMin=fantasmaDist
+  
+        if comidaMin == 0:
+            return sys.maxsize + successorGameState.getScore()
+        elif fantasmaMin == 0:
+            return -sys.maxsize + successorGameState.getScore()
+        elif comidaMin == fantasmaMin:
+            return -1 /fantasmaMin + successorGameState.getScore()
+        elif comidaMin < fantasmaMin:
+            return 1/comidaMin + successorGameState.getScore()
         else:
-            return successorGameState.getScore()+(1/minDistance)
+            return -comidaMin + successorGameState.getScore()
         '''
 
         # Useful information you can extract from a GameState (pacman.py)
@@ -479,28 +492,40 @@ def betterEvaluationFunction(currentGameState):
     newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
     # Useful information you can extract from a GameState (pacman.py)
+    comidaMin=0
+    #encontrar la comida o capsula mas cercana
+    comidas=newFood.asList()+currentGameState.getCapsules()
+    for food in comidas:
+        comidaDist=util.manhattanDistance(food,pacman_pos)
+        if(comidaMin>=comidaDist or comidaMin==0):
+            comidaMin=comidaDist
 
-    #Comida
-    foodList=newFood.asList()
-    minDistance=-1
-    for food in foodList:
-        distanciaF=util.manhattanDistance(food,pacman_pos)
-        if(minDistance>=distanciaF or minDistance==-1):
-            minDistance=distanciaF
+    #fantasma mas cercano
+    fantasmaMin=0
+    for i,fantasma in enumerate(newGhostStates):
+        if(newScaredTimes[i]==0):
+            fantasmaDist=util.manhattanDistance(fantasma.getPosition(),pacman_pos)
+            if(fantasmaMin>=fantasmaDist or fantasmaMin==0):
+                fantasmaMin=fantasmaDist
+        else:
+            fantasmaAsustadoDist=util.manhattanDistance(fantasma.getPosition(),pacman_pos)
+            if(comidaMin>=fantasmaAsustadoDist or comidaMin==0):
+                comidaMin=fantasmaAsustadoDist
+    
+    if fantasmaMin == 0: 
+        fantasmaMin = sys.maxsize
 
-
-    #Fantasma
-    distancias=0
-    for ghost in newGhostStates:
-        distanciaG=util.manhattanDistance(ghost.getPosition(),pacman_pos)
-        distancias=distancias+distanciaG
-
-
-    if(distancias>1):
-        return currentGameState.getScore()+(1/minDistance)+(1/distanciaG)
-
+    if comidaMin == 0:
+        return sys.maxsize + currentGameState.getScore()
+    elif fantasmaMin == 0:
+        return -sys.maxsize + currentGameState.getScore()
+    elif comidaMin == fantasmaMin:
+        return -1 /fantasmaMin + currentGameState.getScore()
+    elif comidaMin < fantasmaMin:
+        return 1/comidaMin + currentGameState.getScore()
     else:
-        return currentGameState.getScore()+(1/minDistance)
+        return -comidaMin + currentGameState.getScore()
+    
 
 # Abbreviation
 better = betterEvaluationFunction
