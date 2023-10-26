@@ -68,97 +68,43 @@ class ReflexAgent(Agent):
         to create a masterful evaluation function.
         """
 
-        '''
+        # OBTENER LA INFORMACION NECESARIA
+
         successorGameState = currentGameState.generatePacmanSuccessor(action)
         newPos = successorGameState.getPacmanPosition()
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
-        newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-        comidaMin=0
-        #encontrar la comida o capsula mas cercana
-        comidas=newFood.asList()+currentGameState.getCapsules()
-        for food in comidas:
-            comidaDist=util.manhattanDistance(food,newPos)
-            if(comidaMin>=comidaDist or comidaMin==0):
-                comidaMin=comidaDist
+        # ENCONTRAR LA COMIDA O CAPSULA MAS CERCANA
 
-        #fantasma mas cercano
-        fantasmaMin=0
-        for fantasma in newGhostStates:
-            fantasmaDist=util.manhattanDistance(fantasma.getPosition(),newPos)
-            if(fantasmaMin>=fantasmaDist or fantasmaMin==0):
-                fantasmaMin=fantasmaDist
+        food_min_distance=0
+        foods = newFood.asList() + currentGameState.getCapsules()
+        for food in foods:
+            food_dist=util.manhattanDistance(food,newPos)
+            if(food_min_distance>=food_dist or food_min_distance==0):
+                food_min_distance=food_dist
+
+        # ENCONTRAR EL FANTASMA MAS CERCANO
+
+        ghost_min_distance=0
+        for ghostState in newGhostStates:
+            ghost_dist=util.manhattanDistance(ghostState.getPosition(),newPos)
+            if(ghost_min_distance>=ghost_dist or ghost_min_distance==0):
+                ghost_min_distance=ghost_dist
   
-        if comidaMin == 0:
+        # EVALUAR LA SITUACION
+
+        if food_min_distance == 0:
             return sys.maxsize + successorGameState.getScore()
-        elif fantasmaMin == 0:
+        elif ghost_min_distance == 0:
             return -sys.maxsize + successorGameState.getScore()
-        elif comidaMin == fantasmaMin:
-            return -1 /fantasmaMin + successorGameState.getScore()
-        elif comidaMin < fantasmaMin:
-            return 1/comidaMin + successorGameState.getScore()
+        elif food_min_distance == ghost_min_distance:
+            return -1 /ghost_min_distance + successorGameState.getScore()
+        elif food_min_distance < ghost_min_distance:
+            return 1/food_min_distance + successorGameState.getScore()
         else:
-            return -comidaMin + successorGameState.getScore()
-        '''
+            return -food_min_distance + successorGameState.getScore()
 
-        # Useful information you can extract from a GameState (pacman.py)
-        successorGameState = currentGameState.generatePacmanSuccessor(action)
-
-        newPos = successorGameState.getPacmanPosition()
-        newFood = successorGameState.getFood().asList()
-
-        oldPos = currentGameState.getPacmanPosition()
-        oldFood = currentGameState.getFood().asList()
-
-        newGhostStates = successorGameState.getGhostStates()
-        oldGhostStates = currentGameState.getGhostStates()
-
-        "*** YOUR CODE HERE ***"
-
-        # CASOS EXTREMOS
-
-        if successorGameState.isLose():
-            return -100000
-        elif successorGameState.isWin():
-            return 100000
-
-        # CALCULAR DISTANCIAS A LA COMIDA (ANTES VS DESPUES)
-
-        newFoodDist = [util.manhattanDistance(newPos, food) for food in newFood]
-        oldFoodDist = [util.manhattanDistance(oldPos, food) for food in oldFood]
-
-        minNewFoodDist = min(newFoodDist)
-        minOldFoodDist = min(oldFoodDist)
-
-        # CALCULAR DISTANCIAS A LOS FANTASMAS (ANTES VS DESPUES)
-
-        newGhostDistances = [util.manhattanDistance(newPos, ghostState.getPosition()) for ghostState in newGhostStates]
-        oldGhostDistances = [util.manhattanDistance(oldPos, ghostState.getPosition()) for ghostState in oldGhostStates]
-
-        minNewGhostDist = min(newGhostDistances)
-        minOldGhostDist = min(oldGhostDistances)
-
-        # FACTOR 1 -> CERCANIA A LA COMIDA
-        v1 = 0
-        if newFoodDist and minNewFoodDist < minOldFoodDist:
-            v1 = 40
-
-        # FACTOR 2 -> NUMERO DE COMIDAS EN EL TABLERO
-        v2 = 0
-        if len(newFoodDist) < len(oldFoodDist):
-            v2 = 170
-
-        # FACTOR 3 -> CERCANIA A LOS FANTASMAS
-        v3 = 0
-        if minNewGhostDist > minOldGhostDist:
-            v3 = 10
-        else:
-            v3 = -5
-
-        value = v1 + v2 + v3
-
-        return successorGameState.getScore() - currentGameState.getScore() + value
 
 
 def scoreEvaluationFunction(currentGameState):
@@ -221,42 +167,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         gameState.isLose():
         Returns whether or not the game state is a losing state
-        """
-        "*** YOUR CODE HERE ***"
-        """
-        max_depth = 2
-
-        def value(state, agentIndex):
-
-            if state.isWin() or state.isLose():
-                return self.evaluationFunction(state)
-
-            elif agentIndex >= 1:
-                min_value(state, agentIndex)
-
-            else:
-                max_value(state)
-
-        def max_value(state):
-            v = -10000
-            legalActions = state.getLegalActions(0)
-            for action in legalActions:
-                successor = state.generateSuccessor(0, action)
-                v = max(v, value(successor, 1))
-            return v
-
-        def min_value(state, agentIndex):
-            v = 10000
-            legalActions = state.getLegalActions(agentIndex)
-            for action in legalActions:
-                successor = state.generateSuccessor(agentIndex, action)
-                v = max(v, value(successor, agentIndex + 1))
-            return v
-
-        legalActions = game_state.getLegalActions(0)
-        successors = []
-        for action in legalActions:
-            successors.append(game_state.generateSuccessor(0, action))
         """
 
         def value(state, agentIndex, depth):
@@ -486,45 +396,49 @@ def betterEvaluationFunction(currentGameState):
 
     DESCRIPTION: <write something here so we know what you did>
     """
+    
+    # OBTENER LA INFORMACION NECESARIA
+
     pacman_pos = currentGameState.getPacmanPosition()
     newFood = currentGameState.getFood()
     newGhostStates = currentGameState.getGhostStates()
     newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-    # Useful information you can extract from a GameState (pacman.py)
-    comidaMin=0
-    #encontrar la comida o capsula mas cercana
-    comidas=newFood.asList()+currentGameState.getCapsules()
-    for food in comidas:
-        comidaDist=util.manhattanDistance(food,pacman_pos)
-        if(comidaMin>=comidaDist or comidaMin==0):
-            comidaMin=comidaDist
+    # ENCONTRAR LA COMIDA O CAPSULA MAS CERCANA
 
-    #fantasma mas cercano
-    fantasmaMin=0
-    for i,fantasma in enumerate(newGhostStates):
-        if(newScaredTimes[i]==0):
-            fantasmaDist=util.manhattanDistance(fantasma.getPosition(),pacman_pos)
-            if(fantasmaMin>=fantasmaDist or fantasmaMin==0):
-                fantasmaMin=fantasmaDist
+    food_min_distance=0
+    foods = newFood.asList()+currentGameState.getCapsules()
+    for food in foods: 
+        food_dist = util.manhattanDistance(food,pacman_pos)
+        if (food_min_distance >= food_dist or food_min_distance == 0):
+            food_min_distance = food_dist
+
+    # ENCONTRAR EL FANTASMA MAS CERCANO (LOS FANTASMAS ASUSTADOS SE CONSIDERA COMIDA)
+
+    ghost_min_distance=0
+    for i,ghostState in enumerate(newGhostStates):
+        if (newScaredTimes[i] == 0):
+            ghost_distance = util.manhattanDistance(ghostState.getPosition(),pacman_pos)
+            if(ghost_min_distance >= ghost_distance or ghost_min_distance==0):
+                ghost_min_distance = ghost_distance
         else:
-            fantasmaAsustadoDist=util.manhattanDistance(fantasma.getPosition(),pacman_pos)
-            if(comidaMin>=fantasmaAsustadoDist or comidaMin==0):
-                comidaMin=fantasmaAsustadoDist
+            scared_ghosts = util.manhattanDistance(ghostState.getPosition(),pacman_pos)
+            if(food_min_distance >= scared_ghosts or food_min_distance == 0):
+                food_min_distance = scared_ghosts
     
-    if fantasmaMin == 0: 
-        fantasmaMin = sys.maxsize
+    if ghost_min_distance == 0: 
+        ghost_min_distance = sys.maxsize
 
-    if comidaMin == 0:
+    if food_min_distance == 0:
         return sys.maxsize + currentGameState.getScore()
-    elif fantasmaMin == 0:
+    elif ghost_min_distance == 0:
         return -sys.maxsize + currentGameState.getScore()
-    elif comidaMin == fantasmaMin:
-        return -1 /fantasmaMin + currentGameState.getScore()
-    elif comidaMin < fantasmaMin:
-        return 1/comidaMin + currentGameState.getScore()
+    elif food_min_distance == ghost_min_distance:
+        return -1 / ghost_min_distance + currentGameState.getScore()
+    elif food_min_distance < ghost_min_distance:
+        return 1/ food_min_distance + currentGameState.getScore()
     else:
-        return -comidaMin + currentGameState.getScore()
+        return -food_min_distance + currentGameState.getScore()
     
 
 # Abbreviation
